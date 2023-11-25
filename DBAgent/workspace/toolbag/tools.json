@@ -1,0 +1,58 @@
+[
+    {
+        "name":"create_database",
+        "description":"With this tool, you can create databases on a Postgres server. \n When you want to make a database, you can use this tool to do so.",
+        "func":"dbmanager.create_database",
+        "class":"dbmanager",
+        "args":{"db_name":"str"},
+        "user_permission_required":"False"
+    },
+    {
+        "name":"delete_database",
+        "description":"With this tool, you can delet databases on a Postgres server. \n When you want to delete a database, you can use this tool to do so.",
+        "func":"dbmanager.delete_database",
+        "class":"dbmanager",
+        "args":{"db_name":"str"},
+        "user_permission_required":"False"
+    },
+    {
+        "name":"create_table",
+        "description":"With this tool, you can create tables for a Postgres database. \n When you want to make a table, you can use this tool to do so.",
+        "func":"dbmanager.create_table",
+        "class":"dbmanager",
+        "args":{"table_name":"str", "db_name":"str"},
+        "user_permission_required":"False"
+    },
+    {
+        "name":"list_databases",
+        "description":"With this tool, you can list databases on a Postgres server. \n When you want to view a list of databases, you can use this tool to do so.",
+        "func":"dbmanager.list_databases",
+        "class":"dbmanager",
+        "args":{},
+        "user_permission_required":"False"
+    },
+    {
+        "name":"execute_query",
+        "description":"With this tool, you can execute a SQL query on a specific Postgres database. \n When you want to perform a query action, you can use this tool to do so.",
+        "func":"dbmanager.execute_query",
+        "class":"dbmanager",
+        "args":{"db_name":"str", "query":"str"},
+        "user_permission_required":"False"
+    },
+    {
+        "name": "drop_table",
+        "description": "With this tool, you can delete an existing table from a Postgres database.",
+        "func": "dbmanager.drop_table",
+        "class": "dbmanager",
+        "args": {"table_name": "str", "db_name": "str"},
+        "user_permission_required": "True"
+    },
+    {
+        "name": "list_tables",
+        "description": "With this tool, you can list all tables in a Postgres database.",
+        "func": "dbmanager.list_tables",
+        "class": "dbmanager",
+        "args": {"db_name": "str"},
+        "user_permission_required": "False"
+    }
+]

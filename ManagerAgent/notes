@@ -1,0 +1,4 @@
+This agent will be created with every chat handling agents. 
+This agent will start the begin dialogue into each agent, and will be in charge of collaboration between agents.
+This agent will also handle the interfacing questions to the user.
+Pending more uses.
