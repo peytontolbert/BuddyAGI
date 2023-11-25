@@ -179,7 +179,7 @@ def assigntaskk():
             message_list.append({'task_id': task_id, 'chat_id': chat_id, 'user': user, 'message': task, 'complete_status': 'False'})
         elif receiver == user:
             # For user, add the task message to the chat
-            chat['messages'].append({'user': user, 'message': task, 'task_id': task_id, 'require_reply': True})
+            chat['messages'].append({'user': user, 'message': task, 'task': {'task_id': task_id, 'require_reply': True}})
             chats[chat_id] = chat  # Update the chat with the new message
         else:
             return jsonify({'status': 'failure', 'error': 'Invalid receiver'}), 400
@@ -232,6 +232,29 @@ def chatwithhuman():
     return jsonify({'status': 'success', 'message': 'Message received'}), 200
 
 
+@app.route("/completetask", methods=["POST"])
+def taskcompletion():
+    data = request.get_json()
+    message = data.get('message')
+    user = data.get('user')
+    task_id = data.get('task_id')
+    chat_id = data.get('chat_id')
+    chat = chats.get(chat_id)
+    active_task = activetasks.get(task_id)
+    #move active_task to completed_task
+    if active_task is not None and chat is not None:
+        completedtasks[task_id] = active_task
+        del activetasks[task_id]
+        # Determine the receiver and append task message to the respective list
+        if user.lower() in ['codingagent', 'dbagent']:
+            # For coding or database agent, append to their respective message lists
+            message_list = coding_agentmessages if user.lower() == 'codingagent' else database_agentmessages
+            message_list.append({'task_id': task_id, 'chat_id': chat_id, 'user': user, 'message': message, 'complete_status': 'True'})
+        elif user == 'Buddy':
+            # For user, add the task message to the chat
+            chat['messages'].append({'user': user, 'message': message, 'task': {'task_id': task_id, 'require_reply': False, 'complete_status': 'True'}})
+            chats[chat_id] = chat
+    chat['messages'].append({'user': 'Buddy', 'message': 'Task has been completed', 'task': {'task_id': task_id, 'require_reply': False, 'complete_status': 'True'}})
 
 @app.route("/replytotask", methods=["POST"])
 def reply_to_task():

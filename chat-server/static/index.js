@@ -71,6 +71,18 @@ const pollForNewMessages = () => {
         // data will contain all of the messages from the chatbox such as { messages: [{P: Hey}, {AI: How are you?}]}
         // If there are new messages, append them to the chat box
         if (data && data.messages) {
+            
+        if (data.task && data.task.complete) {
+            const task = activetasks[currentChatId][data.task.task_id]
+            if (task) {
+                task.complete = true;
+                updateTasks(currentChatId);
+                completedtasks[currentChatId] = task;
+                delete activetasks[currentChatId][data.task.task_id];
+            }
+            activetasks[currentChatId] = data.task_id;
+            updateTasks(currentChatId);
+        } else {
             console.log(data);
             const newMessages = data.messages.slice(lastMessageCount);
             newMessages.forEach(message => {
@@ -79,7 +91,7 @@ const pollForNewMessages = () => {
             });
             lastMessageCount = data.messages.length; // Update the last message count
         }
-
+    }
     })
     .catch((error) => {
         console.error('Error:', error);
@@ -157,7 +169,6 @@ const appendTaskComponent = (taskMessage) => {
 // Function to send task reply to the server
 const sendTaskReply = (taskId) => {
     const replyMessage = $(`#reply-input-${taskId}`).val();
-    const completestatus = True;
     if(replyMessage) {
         fetch('http://localhost:5000/replytotask', {
             method: 'POST',
@@ -169,7 +180,7 @@ const sendTaskReply = (taskId) => {
                 task_id: taskId, 
                 reply: replyMessage,
                 chat_id: currentChatId,
-                complete: completestatus 
+                complete: true 
             }),
         })
         .then(response => response.json())
