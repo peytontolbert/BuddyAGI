@@ -27,7 +27,7 @@ class Manager:
     def handle_new_message(self, user_message: Dict[str, Any]) -> None:
         sender, messages, task_id, chat_id, user, completed = self.parse_message(user_message)
         if task_id in self.tasks:
-                if completed == True:
+                if completed:
                     #delegate next subtask
                     self.project_manager.notify_subtask_completion(task_id, self.tasks[task_id]["current_subtask_index"])
                 else:
@@ -111,6 +111,9 @@ class ProjectManager(Manager):
         self.name = "ProjectManager"
         self.info = "I am the project manager. I help manage projects and tasks."
     def initialize_task_structure(self, task_id, subtasks):
+        #add dependency tracking to subtasks
+        for i, subtask in enumerate(subtasks):
+            subtask['dependencies'] = [j for j in range(i+1, len(subtasks))]
         self.manager.tasks[task_id].update({
             "status": "Delegated to specialized managers",
             "sub_tasks": subtasks,
@@ -142,28 +145,38 @@ class ProjectManager(Manager):
                 self.manager.agents[manager_name].handle_task(task_id, task_details)
             else:
                 logging.error(f"Invalid manager or subtask details in {subtask}")
-    def notify_subtask_completion(self, task_id, subtask_index):
+    def notify_subtask_completion(self, task_id, subtask_index, feedback=None):
         task = self.manager.tasks[task_id]
         if subtask_index < len(task["sub_tasks"]):
             subtask = task["sub_tasks"][subtask_index]
             subtask["in_progress"] = False
             subtask["completed"] = True
             task["current_subtask_index"] = subtask_index + 1
+            if feedback:
+                self.adjust_subsequent_subtasks(task_id, subtask_index, feedback)
             self.assign_next_subtask(task_id)
-    def review_subtask_redirection(self, task_id, task):
+    def review_subtask_redirection(self, task_id, subtask):
         # Logic to handle the redirected subtask
         # Decide whether to reassign it to another manager or break it down further
         # You can use a similar system prompt as in break_down_task to reassess and reassign the task
-        reassessed_subtasks, user_interactions = self.reassess_and_break_down_task(task)
+        task = self.manager.tasks[task_id]
+        index = task["current_subtask_index"]
+        task_context = {
+            "completed_subtasks": task["sub_tasks"][:index],
+            "current_subtask": subtask,
+            "remaining_subtasks": task["sub_tasks"][index:]
+        }
+        reassessed_subtasks, user_interactions = self.reassess_and_break_down_task(task_context)
         task = self.manager.tasks[task_id]
         index = task["current_subtask_index"]
         if reassessed_subtasks:
-            task["sub_tasks"][index:index] = reassessed_subtasks
+            # Replace the current subtask and its dependencies with reassessed subtasks
+            task["sub_tasks"][index:] = reassessed_subtasks
         if user_interactions:
             self.handle_user_interaction(task_id, user_interactions)
         if not user_interactions:
             self.assign_next_subtask(task_id)
-    def reassess_and_break_down_task(self, task):
+    def reassess_and_break_down_task(self, task_context):
         systemprompt = """
         You are an AI Project Manager reassessing a redirected subtask. 
         Determine if the subtask can be further broken down for specialized managers, 
@@ -181,9 +194,9 @@ class ProjectManager(Manager):
         }
         """
         template = """
-        [SUBTASK]
-        {task}"""
-        prompt = template.format(task=task)
+        [PROJECT CONTEXT]
+        {task_context}"""
+        prompt = template.format(task_context=task_context)
         messages = {"role": "system", "content": systemprompt}, {"role": "user", "content": prompt}
         result = self.gpt.chat_with_gpt3(messages)
         print(result)
@@ -197,7 +210,10 @@ class ProjectManager(Manager):
         except json.JSONDecodeError as e:
             logging.error(f"Failed to parse the response as JSON: {e}")
             return [], []
-
+    def adjust_subsequent_subtasks(self, task_id, subtask_index, feedback):
+        # Logic to adjust subsequent subtasks based on feedback
+        # This could involve reassessing dependencies, changing subtask details, etc.
+        pass
     def break_down_task(self, task):
         # Logic to break down the task into subtasks
         systemprompt = """You are an AI Project Manager.
@@ -247,6 +263,8 @@ class ProjectManager(Manager):
                 print(f"Failed to assign interaction. Status Code: {response.status_code}")
         except requests.exceptions.RequestException as e:
             logging.error(f"An error occurred while assigning interaction to user: {e}")
+
+
 class CodingManager(Manager):
     def __init__(self):
         super().__init__() # Initialize Manager

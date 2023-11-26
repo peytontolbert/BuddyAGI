@@ -1,4 +1,5 @@
-from codingAgent import Manager, CodingManager, DBManager
+from codingAgent import CodingAgent
+from codingAgentclasses import code_gen, code_mod, code_run, test_unit_gen, test_unit_mod, test_unit_run, test_integration_gen, test_integration_mod, test_integration_run, test_e2e_gen, test_e2e_mod, test_e2e_run
 from workspace.tools.base import AgentTool
 from workspace.toolbag.toolbag import Toolbag
 from workspace.tools.codingagenttools import codingagenttools
@@ -8,7 +9,7 @@ import importlib
 def main():
     codingmanager = codingagenttools()
     print(codingmanager.view_workspace())
-    manager = Manager(agent_classes=[CodingManager, DBManager])
+    codingagent = CodingAgent(agent_classes=[code_gen, code_mod, code_run, test_unit_gen, test_unit_mod, test_unit_run, test_integration_gen, test_integration_mod, test_integration_run, test_e2e_gen, test_e2e_mod, test_e2e_run ])
     tools = []
     toolbag = Toolbag()
     for tool in toolbag.toolbag:
@@ -30,10 +31,10 @@ def main():
             user_permission_required=tool['user_permission_required']
         )
         print(tool_instance)
-        manager.procedural_memory.memorize_tools([tool_instance])
+        codingagent.procedural_memory.memorize_tools([tool_instance])
     try:
         while True:
-            manager.run()
+            codingagent.run()
     except KeyboardInterrupt:
         print("Received KeyboardInterrupt. Exiting...")
     finally:

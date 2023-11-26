@@ -22,7 +22,7 @@ from langchain.schema import (
 
 
 BASE_TEMPLATE = """
-Your decisions are made to make independent actions as an autonomous database agent.
+Your decisions are made to make independent actions as an autonomous coding agent.
 
 
 [PERFORMANCE EVALUATION]
@@ -40,8 +40,7 @@ You are given the following task:
 {task}
 
 [TOOLS]
-You can ONLY ONE TOOL at a time.
-tool name: "tool description", arg1: <arg1>, arg2: <arg2>
+Available tools for this task are listed below. You can use ONLY ONE TOOL at a time.
 {tool_info}
 """
 
@@ -62,24 +61,25 @@ Please ensure your output strictly follows JSON RESPONSE FORMAT.
 
 [JSON RESPONSE FORMAT]
 {{
-        "observation": "observation of [RECENT EPISODES]",
-        "thoughts": {{
-            "task": "description of [YOUR TASK] assigned to you",
-            "past_events": "if there is any helpful past events in [RELATED PAST EPISODES] for the task, summarize the key points here",
-            "idea": "thought to perform the task",
-            "reasoning": "reasoning of the thought",
-            "criticism": "constructive self-criticism",
-            "summary": "thoughts summary to say to user"
-        }},
-        "action": {{
-            "tool_name": "One of the tool names included in [TOOLS]",
-            "args": {{
-                "arg name": "value",
-                "arg name": "value"
-            }}
+    "observation": "Your observation of recent episodes and their relevance to the current task.",
+    "thoughts": {{
+        "task": "Your understanding of the task assigned to you.",
+        "past_events": "Key points from past events that help in this task.",
+        "idea": "Your proposed approach or idea to perform the task.",
+        "reasoning": "The reasoning behind your proposed approach.",
+        "criticism": "Any constructive self-criticism or considerations.",
+        "summary": "A brief summary to communicate to the user."
+    }},
+    "action": {{
+        "tool_name": "The chosen tool from the list in [TOOLS].",
+        "args": {{
+            "arg1": "value1",
+            "arg2": "value2"
+            // Additional arguments as needed
         }}
     }}
-Determine which next command to use, and respond using the format specified above:
+}}
+Determine which next command to use, and respond using the format specified above.
 """
 
 def get_templatechatgpt(Dicts = {}):
@@ -118,49 +118,3 @@ def memory_to_template(memory: List[Episode] = None):
  #       template += recent_episodes
  #   template += SCHEMA_TEMPLATE
  #   return template"""
-
-def get_template(memory: List[Episode] = None) -> PromptTemplate:
-    template = BASE_TEMPLATE
-
-    # If there are past conversation logs, append them
-    if len(memory) > 0:
-        # insert current time and date
-        recent_episodes = RECENT_EPISODES_TEMPLETE
-        recent_episodes += f"The current time and date is {time.strftime('%c')}"
-
-        # insert past conversation logs
-        for episode in memory:
-            thoughts_str = json.dumps(episode.thoughts)
-            action_str = json.dumps(episode.action)
-            result = episode.result
-            recent_episodes += thoughts_str + "/n" + action_str + "/n" + result + "/n"
-
-        template += recent_episodes
-
-    template += SCHEMA_TEMPLATE
-
-    PROMPT = PromptTemplate(
-        input_variables=["agent_name", "goal", "related_knowledge", "related_past_episodes", "task", "tool_info"], template=template)
-    return PROMPT
-
-def get_chat_template(memory: List[Episode] = None) -> ChatPromptTemplate:
-    messages = []
-    messages.append(SystemMessagePromptTemplate.from_template(BASE_TEMPLATE))
-
-    # If there are past conversation logs, append them
-    if len(memory) > 0:
-        # insert current time and date
-        recent_episodes = RECENT_EPISODES_TEMPLETE
-        recent_episodes += f"The current time and date is {time.strftime('%c')}"
-
-        # insert past conversation logs
-        for episode in memory:
-            thoughts_str = json.dumps(episode.thoughts)
-            action_str = json.dumps(episode.action)
-            result = episode.result
-            recent_episodes += thoughts_str + "/n" + action_str + "/n" + result + "/n"
-
-        messages.append(SystemMessage(content=recent_episodes))
-    messages.append(SystemMessage(content=SCHEMA_TEMPLATE))
-
-    return ChatPromptTemplate.from_messages(messages)

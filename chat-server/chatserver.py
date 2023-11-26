@@ -165,7 +165,8 @@ def assignmanagertask():
 def assigntaskk():
     data = request.get_json()
     task_id = data.get('task_id')
-    chat_id = data.get('chat_id')
+    activetask = activetasks.get(task_id)
+    chat_id = activetask['chat_id']
     user = data.get('user')
     task = data.get('task')
     receiver = data.get('receiver')
@@ -176,10 +177,10 @@ def assigntaskk():
         if receiver.lower() in ['codingagent', 'dbagent']:
             # For coding or database agent, append to their respective message lists
             message_list = coding_agentmessages if receiver.lower() == 'codingagent' else database_agentmessages
-            message_list.append({'task_id': task_id, 'chat_id': chat_id, 'user': user, 'message': task, 'complete_status': 'False'})
+            message_list.append({'task_id': task_id, 'chat_id': chat_id, 'user': user, 'message': task})
         elif receiver == user:
             # For user, add the task message to the chat
-            chat['messages'].append({'user': user, 'message': task, 'task': {'task_id': task_id, 'require_reply': True}})
+            chat['messages'].append({'user': user, 'message': task, 'task': {'task_id': task_id, 'require_reply': True, 'complete_status': False}})
             chats[chat_id] = chat  # Update the chat with the new message
         else:
             return jsonify({'status': 'failure', 'error': 'Invalid receiver'}), 400
