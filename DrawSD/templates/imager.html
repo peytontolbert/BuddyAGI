@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Upscaler</title>
+<style>
+body, html {
+    height: 100%;
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
+.container {
+  position: relative;
+  width: 80%;
+  max-width: 1200px;
+  margin: 50px auto;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#before, #after {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%; /* Initial position of slider */
+  height: 100%;
+  object-fit: cover; /* This ensures images are not distorted */
+}
+
+#before {
+    z-index: 2; /* This ensures that the 'before' image is above the 'after' image but below the slider */
+    height: fixed;
+    height: 100%;
+}
+
+#after {
+    z-index: 1; /* This ensures that the 'after' image is below the 'before' image */
+}
+
+
+img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+#slider {
+  position: absolute;
+  z-index: 3;
+  cursor: ew-resize;
+  height: 100%;
+  background-color: #FFF;
+  border-left: 2px solid #000;
+  border-right: 2px solid #000;
+  left: 50%;
+  top: 0;
+}
+
+.header {
+  text-align: center;
+  padding: 10px;
+  background-color: #f8f8f8;
+}
+
+#uploadButton {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  background-color: #5cb85c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+#uploadButton:hover {
+  background-color: #4cae4c;
+}
+
+#imageUpload {
+  margin-top: 10px;
+}
+</style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Image Upscaler</h1>
+        <input type="file" id="imageUpload" accept="image/*">
+        <button id="uploadButton">Upload and Process</button>
+      </div>
+      
+      <div class="container">
+        <img id="afterImage" alt="After" style="display:none;">
+        <div class="before-after" id="before">
+            <img id="beforeImage" alt="Before" style="display:none;">
+        </div>
+        <div id="slider"></div>
+      </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function(){
+        let slider = document.getElementById('slider');
+        let beforeAfter = document.getElementById('before');
+        let container = document.querySelector('.container');
+    
+        document.getElementById('uploadButton').addEventListener('click', function() {
+        var fileInput = document.getElementById('imageUpload');
+        var file = fileInput.files[0];
+        var reader = new FileReader();
+
+        reader.onload = function(e) {
+            var img = new Image();
+            img.onload = function() {
+                // Set the height of the container to match the uploaded image
+                container.style.height = img.naturalHeight + 'px';
+                container.style.width = img.naturalWidth + 'px';
+
+                // Now you can set the before and after images
+                before.style.backgroundImage = 'url(' + e.target.result + ')';
+                after.style.backgroundImage = 'url(' + e.target.result + ')';
+
+                // Set the width of the before image to match the slider position
+                before.style.width = slider.offsetWidth + 'px';
+                before.style.height = '100%'; // This will now be based on the container's height
+            };
+            img.src = e.target.result; // This triggers the img.onload
+        };
+
+        reader.readAsDataURL(file); // This triggers the reader.onload
+    });
+        // Function to and the position of the slider and show the correct portions of the images
+        function slideMove(e) {
+            let rect = container.getBoundingClientRect();
+            let x = e.clientX - rect.left; //x position within the element.
+            beforeAfter.style.width = x + "px";
+            slider.style.left = x + "px";
+        }
+    
+        document.getElementById('uploadButton').addEventListener('click', function() {
+            var fileInput = document.getElementById('imageUpload');
+            var file = fileInput.files[0];
+            var formData = new FormData();
+            formData.append('image', file);
+
+
+            fetch('http://localhost:5000/process', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(processedImage => {
+                var beforeImage = document.getElementById('before');
+                var afterImage = document.getElementById('afterImage');
+
+                // Assuming the original image is shown as 'before' and the processed one as 'after'
+            afterImage.src = URL.createObjectURL(processedImage);
+            afterImage.style.display = 'block';
+            afterImage.style.height = beforeImage.height + 'px';
+            afterImage.style.width = beforeImage.width + 'px';
+            beforeAfter.style.width = '50%'; // Set initial split position
+            slider.style.left = '50%'; // Set initial slider position
+            container.addEventListener('mousemove', slideMove);
+            container.addEventListener('touchmove', slideMove); // Added for touch screens
+    
+
+            // Add mouse and touch events to the slider
+            slider.addEventListener('mousedown', () => {
+                container.addEventListener('mousemove', slideMove);
+            });
+            slider.addEventListener('mouseup', () => {
+                container.removeEventListener('mousemove', slideMove);
+            });
+            slider.addEventListener('touchstart', () => {
+                container.addEventListener('touchmove', slideMove);
+            });
+            slider.addEventListener('touchend', () => {
+                container.removeEventListener('touchmove', slideMove);
+            });
+
+            // Remove the event listeners if mouse leaves the container or touch ends
+ //           container.addEventListener('mouseleave', function() {
+   //             beforeAfter.style.width = '50%';
+     //           slider.style.left = '50%';
+       //         container.removeEventListener('mousemove', slideMove);
+         //   });
+            container.addEventListener('touchcancel', function() {
+                beforeAfter.style.width = '50%';
+                slider.style.left = '50%';
+                container.removeEventListener('touchmove', slideMove);
+            });
+        })
+        .catch(error => console.error('Error:', error));
+    });
+});
+</script>
+
+</body>
+</html>

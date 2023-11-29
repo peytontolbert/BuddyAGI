@@ -1,9 +1,8 @@
-from ManagerAgent import ManagerAgent
-
+from Manager import Manager, DBManager, CodingManager, ProjectManager
 
 
 def main():
-    agent = ManagerAgent()
+    agent = Manager(agent_classes = [CodingManager, DBManager])
     try:
         while True:
             agent.run()

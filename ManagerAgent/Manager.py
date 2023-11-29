@@ -1,9 +1,7 @@
 import requests
 import openai
 import time
-import llm.reason.prompt as ReasonPrompt
 from memory.episodic_memory import EpisodicMemory, Episode
-from memory.procedural_memory import ProceduralMemory
 from memory.memory import MemoryManager
 from gpt.chatgpt import ChatGPT
 from typing import Dict, Any, Optional, Union, List
@@ -17,11 +15,10 @@ class Manager:
     def __init__(self, agent_classes: List[Any]):
         self.gpt = ChatGPT()  # Initialize ChatGPT
         self.episodic_memory = EpisodicMemory()
-        self.procedural_memory = ProceduralMemory()
         self.memory_manager = MemoryManager(self.gpt)
+        self.project_manager = ProjectManager(self)
         self.messages = []
         self.tasks = {}
-        self.project_manager = ProjectManager(self)
         self.agents = [agent_class(self) for agent_class in agent_classes]
         pass
     def handle_new_message(self, user_message: Dict[str, Any]) -> None:
@@ -105,11 +102,12 @@ class Manager:
             print(f"An error occurred: {e}")
     
 
-class ProjectManager(Manager):
-    def __init__(self):
+class ProjectManager:
+    def __init__(self, manager):
         super().__init__() # Initialize Manager
         self.name = "ProjectManager"
         self.info = "I am the project manager. I help manage projects and tasks."
+        self.manager = manager
     def initialize_task_structure(self, task_id, subtasks):
         #add dependency tracking to subtasks
         for i, subtask in enumerate(subtasks):
@@ -145,15 +143,31 @@ class ProjectManager(Manager):
                 self.manager.agents[manager_name].handle_task(task_id, task_details)
             else:
                 logging.error(f"Invalid manager or subtask details in {subtask}")
-    def notify_subtask_completion(self, task_id, subtask_index, feedback=None):
+    def notify_subtask_completion(self, task_id, current_subtask_index):
         task = self.manager.tasks[task_id]
-        if subtask_index < len(task["sub_tasks"]):
-            subtask = task["sub_tasks"][subtask_index]
-            subtask["in_progress"] = False
-            subtask["completed"] = True
-            task["current_subtask_index"] = subtask_index + 1
-            if feedback:
-                self.adjust_subsequent_subtasks(task_id, subtask_index, feedback)
+        subtask = task["sub_tasks"][current_subtask_index]
+        subtask["in_progress"] = False
+        subtask["completed"] = True
+        if current_subtask_index >= len(task["sub_tasks"]):
+            all_subtasks_completed = all([subtask.get("completed") == True for subtask in task["sub_tasks"]])
+            if all_subtasks_completed:
+                task_data = {
+                    "task_id": task_id,
+                    "chat_id": task["chat_id"],
+                    "user": task["user"],
+                    "complete_status": True,
+                    "sender": "Manager"
+                }
+                try:
+                    response = requests.post("http://localhost:5000/completetask", json=task_data)
+                    if response.status_code == 200:
+                        print(f"Task completion notified to user: {task_id}")
+                    else:
+                        print(f"Failed to notify task completion to user. Status Code: {response.status_code}")
+                except Exception as e:
+                    logging.error(f"An error with sending task completion to user {task_id}: {e}")
+        else:
+            task["current_subtask_index"] = current_subtask_index + 1
             self.assign_next_subtask(task_id)
     def review_subtask_redirection(self, task_id, subtask):
         # Logic to handle the redirected subtask
@@ -210,10 +224,6 @@ class ProjectManager(Manager):
         except json.JSONDecodeError as e:
             logging.error(f"Failed to parse the response as JSON: {e}")
             return [], []
-    def adjust_subsequent_subtasks(self, task_id, subtask_index, feedback):
-        # Logic to adjust subsequent subtasks based on feedback
-        # This could involve reassessing dependencies, changing subtask details, etc.
-        pass
     def break_down_task(self, task):
         # Logic to break down the task into subtasks
         systemprompt = """You are an AI Project Manager.
@@ -265,9 +275,99 @@ class ProjectManager(Manager):
             logging.error(f"An error occurred while assigning interaction to user: {e}")
 
 
-class CodingManager(Manager):
-    def __init__(self):
+class WebBrowserManager:
+    def __init__(self, manager):
         super().__init__() # Initialize Manager
+        self.manager = manager
+        self.name = "WebBrowserManager"
+        self.info = "I am the WebBrowser manager. I handle all WebBrowser related tasks."
+
+    def assign_task_to_agent(self, task_id, actions, task):
+        # Assign a list of actions to the coding agent
+        self.send_task_to_agent(task_id, actions, task)
+
+    def send_task_to_agent(self, task_id, actions, task):
+        url = "http://localhost:5000/assigntask"
+        data = {
+            "sender": self.name,
+            "receiver": "WebBrowserAgent",
+            "task_id": task_id,
+            "task": task,
+            "actions": actions
+        }
+        try:
+            response = requests.post(url, json=data)
+            if response.status_code == 200:
+                print(f"Task assigned to WebBrowserAgent: {task} actions: {actions}")
+            else:
+                print(f"Failed to assign task. Status Code: {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            logging.error(f"An error occurred while assigning task to WebBrowserAgent: {e}")
+    def review_new_task(self, task_id, task):
+        print("Coding manager reviewing task")
+        print(task)
+        
+        systemprompt = """
+You are the AI WebBrowser Manager, responsible for managing tasks related to web browsing. 
+Your capabilities include launching a browser, navigating to URLs, moving the mouse, clicking, typing, 
+taking screenshots, scrolling, and dynamically responding to the content of web pages.
+
+You have received a subtask from the AI Project Manager that requires interaction with a web browser. 
+Your task is to devise a flexible and iterative plan of action that adapts to the dynamic content of web pages.
+This plan should include checkpoints for taking screenshots and analyzing them to understand the current state of the page 
+and determine subsequent actions. Where necessary, include steps for requesting user input for critical decisions or verification.
+
+Outline a sequence of actions in JSON format, considering the need for adaptability and user feedback. 
+Each action should be clear and concise, allowing for execution by your WebBrowserAgents. 
+Consider the possibility of unexpected web page layouts or content and plan for contingency actions.
+
+Respond in JSON format:
+{
+    "task": "description of task"
+    "execute": true/false,
+    "sequence": [
+        {"action": "launch browser", "details": {}},
+        {"action": "navigate", "url": "https://example.com"},
+        {"action": "screenshot", "details": {"purpose": "initial assessment"}},
+        {"action": "analyze screenshot", "details": {"purpose": "identify elements"}},
+        {"action": "click", "details": {"method": "coordinate", "x": 100, "y": 200}},
+        {"action": "screenshot", "details": {"purpose": "post-click assessment"}},
+        {"action": "analyze screenshot", "details": {"purpose": "verify successful click"}},
+        {"action": "user input", "details": {"purpose": "critical decision"}},
+        # ... More actions ...
+        {"action": "finalize", "details": {"method": "close browser"}},
+    ],
+    "reassign": true/false if not executable
+}
+"""
+        template = """
+        [SUBTASK]
+        {task}"""
+        prompt = template.format(task=task)
+        messages = [{"role": "system", "content": systemprompt}, {"role": "user", "content": prompt}]
+        result = self.gpt.chat_with_gpt3(messages)
+        print(result)
+        # Further processing of result to extract decisions and actions
+        try:
+            parsed_response = json.loads(result)
+            if parsed_response.get("execute"):
+                actions = parsed_response.get("actions", [])
+                task = parsed_response.get("task", "")
+                # Process actions: Assign them to CodingAgents
+                self.assign_task_to_agent(task_id, actions, task)
+            elif parsed_response.get("reassign"):
+                # Redirect back to ProjectManager for reassignment or further breakdown
+                self.manager.redirect_subtask(task_id, task)
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to parse the AI response as JSON: {e}")
+
+    def handle_task(self, task_id, task):
+        self.review_new_task(task_id, task)
+
+class CodingManager:
+    def __init__(self, manager):
+        super().__init__() # Initialize Manager
+        self.manager = manager
         self.name = "CodingManager"
         self.info = "I am the coding manager. I handle all coding related tasks."
 
@@ -333,9 +433,10 @@ class CodingManager(Manager):
     def handle_task(self, task_id, task):
         self.review_new_task(task_id, task)
 
-class DBManager(Manager):
-    def __init__(self):
+class DBManager:
+    def __init__(self, manager):
         super().__init__() # Initialize Manager
+        self.manager = manager
         self.name = "DatabaseManager"
         self.info = "I am the database manager. I handle all database related tasks."        
 

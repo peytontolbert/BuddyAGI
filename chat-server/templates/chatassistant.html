@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat with Buddy, Helpful Assistant!</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #contentContainer {
+            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 2fr; /* Task section takes 1 part, chat takes 2 parts */
+            grid-template-rows: auto 1fr auto; /* Define the rows for navbar, chatbox, and message input */
+            gap: 20px; /* Spacing between task and chat sections */
+            width: 80%;
+            max-width: 800px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            text-align: center;
+            position: relative; /* Allows absolute positioning relative to this container */
+        }
+        #toggleChatList {
+            /* Style the toggle button similarly to your chat buttons */
+            background-color: #3498db;
+            color: white;
+            padding: 5px 10px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #chatList {
+            /* Style for the container that will hold the chat buttons */
+            display: none; /* Initially hidden */
+            flex-direction: column; /* Stack the buttons vertically */
+            align-items: flex-start; /* Align buttons to the start of the container */
+            gap: 5px; /* Spacing between buttons */
+            padding: 5px 0; /* Padding on the top and bottom */
+        }
+        #navbar {
+            grid-row: 1;
+            justify-content: start; /* Aligns chat buttons to the start of the navbar */
+            align-items: center; /* Centers buttons vertically */
+            gap: 10px; /* Spacing between buttons */
+            /* ... other styles as needed ... */
+        }
+        #chatContainer {
+            display: flex;
+            flex-direction: column;
+            height: 400px; /* Adjust the height as needed */
+            position: relative; /* For absolute positioning of elements like the navbar inside it */
+        }
+        #chatBox {
+            height: 400px;
+            border: 1px solid #e0e0e0;
+            padding: 10px;
+            overflow-y: scroll;
+            margin-top: 20px;
+        }
+        #taskContainer {
+            height: 400px;
+            border: 1px solid #e0e0e0;
+            padding: 10px;
+            overflow-y: scroll;
+            text-align: left;
+            margin-top: 20px;
+        }
+        .task-section {
+            margin-bottom: 10px; /* Reduced margin-bottom for better spacing */
+        }
+        .task-section h2 {
+            padding-left: 10px; /* Padding to move text away from the edge */
+            background-color: #e7ebee; /* Light background for section titles */
+            margin: -10px; /* Align the background edge to the container */
+            margin-bottom: 10px; /* Spacing to the first task */
+            font-size: 1.2em;
+            color: #555;
+        }
+        .task-component {
+            background: #e7ebee;
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 5px solid #3498db; /* Blue for active tasks to stand out */
+        }
+        .task-component.completed {
+            background: #e7ebee; /* Different background for completed tasks */
+            border-left-color: #95a5a6; /* Grey color for completed tasks */
+            text-decoration: line-through;
+        }
+        #userInput, #sendButton, #startChatButton, #activeTasks, #completedTasks {
+            display: none; /* Initially hidden */
+            margin-top: 10px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            border: none;
+            text-transform: uppercase;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        input[type="text"] , button{
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            flex-grow: 1;
+            margin-right: 10px;
+            font-size: 1rem; /* Increase font size */
+        }
+        #usernameContainer {
+            grid-row: 1; /* Place the username container in the first row */
+        }
+        #startChatButton {
+            grid-column: 2 / 3; /* Place the start button in the chat column */
+            grid-row: 3 / 4; /* Place it in the last row */
+            align-self: start; /* Align to the top of the grid row */
+            justify-self: start; /* Align to the left of the grid column */
+            font-size: 0.7rem; /* Larger font size for better readability */
+            padding: 5px 10px; /* Larger padding for a bigger button */
+            margin-top: 5px; /* Spacing from the top element */
+            margin-bottom: 5px; /* Spacing from the bottom element */
+            width: auto; /* Adjust width as per content */
+            border-radius: 5px; /* Rounded corners */
+        }
+        #deleteChatButton {
+            grid-column: 2 / 3; /* Place the start button in the chat column */
+            grid-row: 4 / 4; /* Place it in the last row */
+            align-self: start; /* Align to the top of the grid row */
+            justify-self: start; /* Align to the left of the grid column */
+            font-size: 0.7rem; /* Larger font size for better readability */
+            padding: 5px 10px; /* Larger padding for a bigger button */
+            margin-top: 5px; /* Spacing from the top element */
+            margin-bottom: 5px; /* Spacing from the bottom element */
+            width: auto; /* Adjust width as per content */
+            border-radius: 5px; /* Rounded corners */
+        }
+        #chatBox {
+            grid-row: 2 / 3; /* Chat messages box takes the second row */
+            overflow-y: auto; /* Only show scrollbar when necessary */
+            /* ... other styles ... */
+        }
+    </style>  
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('static', filename='index.js') }}"></script>
+</head>
+<body>
+
+    <div id="contentContainer">
+        <div id="usernameContainer">
+            <input type="text" id="usernameInput" placeholder="Enter your username..." />
+            <button id="usernameButton">Set Username</button>
+        </div>
+
+        <div id="taskContainer">
+            <h3>Tasks</h3>
+            <!-- This will now be to the left of the chat -->
+            <div id="activeTasks">
+                <!-- Active tasks will be appended here -->
+            </div>
+            <div id="completedTasks">
+                <!-- Completed tasks will be appended here -->
+            </div>
+        </div>
+        <div id="chatContainer">
+            <div id="navbar" style="display:none;"><!-- Navbar will be shown when there are chats to display -->
+                <!-- Chat buttons will be dynamically inserted here -->
+                
+                <button id="toggleChatList">Chats</button>
+                <div id="chatList" style="display: none;">
+            </div>
+        <div id="chatBox">
+            <!-- Chat messages will be displayed here -->
+        </div>
+        <div id="messageInputContainer">
+            <input type="text" id="userInput" placeholder="Type your message here..." disabled />
+            <button id="sendButton" disabled>Send</button>
+        </div>
+    </div>
+        <button id="startChatButton" style="display:none;">Start New Chat</button>
+    </div>
+    <button id="deleteChatButton" style="display:none;">Delete</button>
+</div>
+</div>
+
+</body>
+</html>

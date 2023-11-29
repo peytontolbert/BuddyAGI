@@ -14,42 +14,15 @@ import logging
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 class CodingAgent:
-    def __init__(self, agent_classes: List[Any]):
+    def __init__(self):
         self.gpt = ChatGPT()  # Initialize ChatGPT
         self.episodic_memory = EpisodicMemory()
         self.procedural_memory = ProceduralMemory()
         self.memory_manager = MemoryManager(self.gpt)
         self.messages = []
         self.tasks = {}
-        self.agents = [agent_class(self) for agent_class in agent_classes]
+        #self.agents = [agent_class(self) for agent_class in agent_classes]
         pass
-    
-    def generatenewtask(self, chat):
-        message = chat['message']
-        
-        tools = self.procedural_memory.remember_all_tools()
-        tool_info = ""
-        for tool in tools:
-            tool_info += tool.get_tool_info() + "\n"
-
-        template = """Task Request for Autonomous Coding Agent:
-
-As an autonomous coding agent, you have received a new task. Your first step is to thoroughly review the provided conversation or task details. After reviewing, identify and clarify any aspects that require further information or assistance.
-
-Key Responsibilities:
-
-Analyze the task requirements comprehensively.
-Formulate questions to clarify any ambiguous or missing information.
-Determine if you require support from other specialized agents, such as database or search capabilities.
-Keep your responses focused on coding-related aspects and seek collaboration when the task extends beyond your scope.
-Remember, your primary objective is to ensure a complete understanding of the task at hand to execute it efficiently.
-available tools:
-{tool_info}"""
-        systemprompt = template.format(tool_info=tool_info)
-        prompt_messages = [{"role": "system", "content": systemprompt}, {"role": "user", "content": message}]
-        results = openai.ChatCompletion.create(model="gpt-3.5-turbo-16k", messages=prompt_messages)
-        result = results['choices'][0]['message']['content']
-        return result
     def run(self):
         self.checkmessages()
         print(self.messages)
@@ -66,9 +39,9 @@ available tools:
                 print("no new messages")
         except requests.exceptions.RequestException as e:
             print(f"An error occurred: {e}")
-    def sendreply(self, task_id, task, action, complete_status=False):
-        url = "http://localhost:5000/codingreply"
-        data = {"task_id": task_id, "action": action, "task": task} if complete_status == False else {"task_id": task_id, "action": action, "task": task, "complete_status": True}
+    def sendreply(self, task_id, chat_id, user, task, action, complete_status=False):
+        url = "http://localhost:5000/codingreply" if complete_status == False else "http://localhost:5000/completetask"
+        data = {"task_id": task_id, "chat_id": chat_id, "user": user, "action": action, "task": task} if complete_status == False else {"task_id": task_id, "chat_id": chat_id, "user": user, "action": action, "task": task, "complete_status": True}
         try:
             response = requests.post(url, json=data)
             if response.status_code == 200:
@@ -85,7 +58,7 @@ available tools:
         task = data.get("message")
         return task, task_id, chat_id, user   
     def handle_new_message(self, user_message: Dict[str, Any]) -> None:
-        task, task_id = self.parse_message(user_message)
+        task, task_id, chat_id, user = self.parse_message(user_message)
         interpreted_task = self.interpret_task(task)
         action = self.execute_task(interpreted_task, task_id)
         print(action)
@@ -99,7 +72,7 @@ available tools:
         self.memory_manager.store_memory(user_message, interpreted_task, action, summary)
         self.save_agent()
         complete_status = self.verifytaskcompletion(interpreted_task, action)
-        self.sendreply(task_id, task=task, action=action, complete_status=complete_status )
+        self.sendreply(task_id, chat_id, user, task=task, action=action, complete_status=complete_status )
 
     def interpret_task(self, task_description: str) -> str:
 

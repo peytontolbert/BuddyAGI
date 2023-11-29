@@ -1,0 +1,82 @@
+[
+    {
+        "name":"create_py_file",
+        "description":"With this tool, you can create a python file in your workspace. \n When you want to make a python file, you can use this tool to do so.",
+        "func":"codingagenttools.create_py_file",
+        "class":"codingagenttools",
+        "args":{"filename":"str", "content":"str"},
+        "user_permission_required":"False"
+    },
+    {
+        "name":"read_file",
+        "description":"With this tool, you can delet databases on a Postgres server. \n When you want to delete a database, you can use this tool to do so.",
+        "func":"codingagenttools.read_file",
+        "class":"codingagenttools",
+        "args":{"filename":"str"},
+        "user_permission_required":"False"
+    },
+    {
+        "name":"run_file",
+        "description":"With this tool, you can create tables for a Postgres database. \n When you want to make a table, you can use this tool to do so.",
+        "func":"codingagenttools.run_file",
+        "class":"codingagenttools",
+        "args":{"filename":"str"},
+        "user_permission_required":"False"
+    },
+    {
+        "name":"create_database",
+        "description":"With this tool, you can create databases on a Postgres server. \n When you want to make a database, you can use this tool to do so.",
+        "func":"dbagenttools.create_database",
+        "class":"dbagenttools",
+        "args":{"db_name":"str"},
+        "user_permission_required":"False"
+    },
+    {
+        "name":"delete_database",
+        "description":"With this tool, you can delet databases on a Postgres server. \n When you want to delete a database, you can use this tool to do so.",
+        "func":"dbagenttools.delete_database",
+        "class":"dbagenttools",
+        "args":{"db_name":"str"},
+        "user_permission_required":"False"
+    },
+    {
+        "name":"create_table",
+        "description":"With this tool, you can create tables for a Postgres database. \n When you want to make a table, you can use this tool to do so.",
+        "func":"dbagenttools.create_table",
+        "class":"dbagenttools",
+        "args":{"table_name":"str", "db_name":"str"},
+        "user_permission_required":"False"
+    },
+    {
+        "name":"list_databases",
+        "description":"With this tool, you can list databases on a Postgres server. \n When you want to view a list of databases, you can use this tool to do so.",
+        "func":"dbagenttools.list_databases",
+        "class":"dbagenttools",
+        "args":{},
+        "user_permission_required":"False"
+    },
+    {
+        "name":"execute_query",
+        "description":"With this tool, you can execute a SQL query on a specific Postgres database. \n When you want to perform a query action, you can use this tool to do so.",
+        "func":"dbagenttools.execute_query",
+        "class":"dbagenttools",
+        "args":{"db_name":"str", "query":"str"},
+        "user_permission_required":"False"
+    },
+    {
+        "name": "drop_table",
+        "description": "With this tool, you can delete an existing table from a Postgres database.",
+        "func": "dbagenttools.drop_table",
+        "class": "dbagenttools",
+        "args": {"table_name": "str", "db_name": "str"},
+        "user_permission_required": "True"
+    },
+    {
+        "name": "list_tables",
+        "description": "With this tool, you can list all tables in a Postgres database.",
+        "func": "dbagenttools.list_tables",
+        "class": "dbagenttools",
+        "args": {"db_name": "str"},
+        "user_permission_required": "False"
+    }
+]

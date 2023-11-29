@@ -3,15 +3,13 @@ import openai
 import time
 import llm.reason.prompt as ReasonPrompt
 from memory.episodic_memory import EpisodicMemory, Episode
-from memory.procedural_memory import ProceduralMemory
 from memory.semantic_memory import SemanticMemory
 from memory.custom_memory import CustomMemory
 from filemanager.filemanager import FileManager
 from ui.base import BaseHumanUserInterface
 from ui.cui import CommandlineUserInterface
-from typing import Dict, Any, Optional, Union, List
-import psycopg2
-from pydantic import BaseModel, Field
+from typing import Dict, Any, List
+from pydantic import Field
 import os
 import json
 from dotenv import load_dotenv
@@ -26,7 +24,6 @@ class Buddy():
     def __init__(self):
         self.episodic_memory = EpisodicMemory()
         self.semantic_memory = SemanticMemory()
-        self.procedural_memory = ProceduralMemory()
         self.custom_memory = CustomMemory()
         self.messages = []
         self.tasks = []
@@ -59,37 +56,21 @@ class Buddy():
             user = message['user']
             chat = message['messages']
             chat_id = message['chat_id']
-            chat_type = message['type']
-            complete_status = message['complete_status']
-            task_id = message['task_id']
-            if task_id is not None:
-                task = self.activetasks[task_id]
-                task_user = task['user']
-                if chat_type == 'agent':
-                    if complete_status == False:
-                        print("handling agent queries")
-                        self.sendreply(reply, task_user, task_id, is_task=True)
-                        result = self.handleagentmessages(chat, task)
-                    elif complete_status == True:
-                        print(f"task completed for task id: {message['task_id']}")
-                        result = self.handletaskcompletion(chat, task_id)
-                elif chat_type == 'user':
-                    self.sendreply(reply, "ManagerAgent", task_id, is_task=True)
-            if chat_type == 'user':
-                result, message = self.filtermessages(chat)
-                print(result)
-                if result == 'CONVERSATIONAL':
-                    print("conversational agent handling message")
-                    context = self.findcontext(message)
-                    reply = self.handleconversation(message, context)
-                    self.sendreply(reply, user, chat_id)
-                    self.save_agent()
-                elif result == 'TASK-ORIENTED':
-                    print("task agent handling message")
-                    newtask = self.generatetask(chat, user, chat_id)
-                    reply = f"Task created with task_id: {newtask['task_id']}, Message to agents: {newtask['chat']}"
-                    self.sendreply(reply, "ManagerAgent", task_id, is_task=True)
-                    self.save_agent()
+            print(f"user: {user}")
+            print(f"chat_id: {chat_id}")
+            result, message = self.filtermessages(chat)
+            print(result)
+            if result == 'CONVERSATIONAL':
+                print("conversational agent handling message")
+                context = self.findcontext(message)
+                reply = self.handleconversation(message, context)
+                self.sendreply(reply, user, chat_id)
+                self.save_agent()
+            elif result == 'TASK-ORIENTED':
+                print("task agent handling message")
+                newtask = self.generatetask(chat, user, chat_id)
+                reply = f"Task created with task_id: {newtask['task_id']}, Message to agents: {newtask['chat']}"
+                self.save_agent()
         self.messages.clear()
         time.sleep(10)
 
@@ -119,25 +100,24 @@ class Buddy():
         print(f"context: {result}")
         return result
 
-    def checkmessages(self):
+    def checkmessages(self, complete_status = False):
         try:
             response = requests.get("http://localhost:5000/helpermessages")
             if response.status_code == 200:
                 data = response.json()
-                for chat_object in data['messages']:
-                    print(f"new mesages: {chat_object}")
-                    chat_id = chat_object['chat_id']
-                    user = chat_object['user']
-                    messages = chat_object['messages']
-                    message = {"user": user, "messages": messages, "chat_id": chat_id}
-                    self.messages.append(message)
+                print(f"data: {data}")
+                chats = data['messages']
+                for chat_object in chats:
+                    for chat_id, chat_data in chat_object.items():
+                        print(f"new mesages: {chat_object}")
+                        user = chat_data['user']
+                        messages = chat_data['messages']
+                        message = {"user": user, "messages": messages, "chat_id": chat_id }
+                        self.messages.append(message)
             else:
                 print("no new messages")
         except requests.exceptions.RequestException as e:
             print(f"An error occurred: {e}")
-
-
-
     
     def filtermessages(self, chat, retries=5, delay=10):
         if not chat:
@@ -184,22 +164,6 @@ class Buddy():
         results = openai.ChatCompletion.create(model="gpt-3.5-turbo-16k", messages=[{"role": "system", "content": systemprompt}, {"role": "user", "content": chat_input}])
         result = results['choices'][0]['message']['content']
         print(f"AI: {result}")
-        return result
-
-    def handleagentmessages(self, chat, task):
-        user = task['user']
-        activetask = task['task']
-        chat_id = task['chat_id']
-        taskmessages = task['messages']
-        prompt = """You are an autonomous assistant Buddy in charge of interfacing with the user. An agent has sent you a query to pass onto the user.
-        Only respond with the question or query you want to ask the user.
-        Your current task is {activetask}.
-        You will be given a conversation between you and the following Agent(s)"""
-        systemprompt = prompt.format(activetask=activetask)
-        messages =[[{"role": "system", "content": systemprompt}, {"role": "user", "content": chat}]]
-        results = openai.ChatCompletion.create(model="gpt-3.5-turbo-16k", messages=messages)
-        result = results['choices'][0]['message']['content']
-        self.sendreply(result, user, chat_id)
         return result
 
     def generatetask(self, chat, user, chat_id):
@@ -251,21 +215,9 @@ class Buddy():
             print(f"Failed to send new task")
             return f"Failed to send new task"
 
-    def handletaskcompletion(self, chat, task_id):
-        if self.activetasks[task_id] is None:
-            print(f"Task with ID {task_id} not found in active tasks.")
-            return
-        task = self.activetasks[task_id]
-        chat_id = task['chat_id']
-        user = task['user']
-        self.completedtasks[task_id] = self.activetasks.pop(task_id)
-        completion_message = f"Task completed with chat: {chat}"
-        self.sendreply(completion_message, chat_id, user)
-        return
-
-    def sendreply(self, reply, user, identifier, is_task=False):
+    def sendreply(self, reply, user, identifier):
         url = "http://localhost:5000/buddychat"
-        data = {"message": reply, "user": user, "task_id": identifier} if is_task else {"message": reply, "user": user, "chat_id": identifier}
+        data = {"message": reply, "receiver": user, "chat_id": identifier}
         try:
             response = requests.post(url, json=data)
             if response.status_code == 200:
