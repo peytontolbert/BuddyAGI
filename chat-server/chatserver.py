@@ -382,7 +382,7 @@ def run_tile_model(generator, image, prompt, strength):
                 strength=strength,
                 generator=generator,
                 image=image,
-                control_image=canny_image,
+                control_image=image,
 ).images[0]
     return image
 

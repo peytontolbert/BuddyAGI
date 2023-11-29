@@ -30,7 +30,6 @@ body, html {
 
 #before {
     z-index: 2; /* This ensures that the 'before' image is above the 'after' image but below the slider */
-    height: fixed;
     height: 100%;
 }
 
@@ -93,13 +92,13 @@ img {
         <label for="inputPrompt">Input Prompt</label>
         <input type="text" id="inputPrompt" name="inputPrompt" placeholder="Enter your prompt">
         <!-- Slider Input -->
-        <label for="slider">Adjust Quality (1-10):</label>
+        <label for="strengthslider">Adjust Quality (1-10):</label>
         <input type="range" id="strengthslider" name="quality" min="1" max="10" value="5" oninput="strengthsliderValue.value = strengthslider.value">
         <output id="strengthsliderValue">50</output>
         
       </div>
       
-      <div class="container">
+      <div class="container" id="container">
         <img id="afterImage" alt="After" style="display:none;">
         <div class="before-after" id="before">
             <img id="beforeImage" alt="Before" style="display:none;">
@@ -109,6 +108,7 @@ img {
 <script>
     document.addEventListener('DOMContentLoaded', function(){
         let slider = document.getElementById('slider');
+        let beforeAfter = document.getElementById('before');
         let before = document.getElementById('beforeImage');
         let after = document.getElementById('afterImage');
         let container = document.querySelector('.container');
@@ -126,12 +126,11 @@ img {
                 container.style.width = img.naturalWidth + 'px';
 
                 // Now you can set the before and after images
-                before.style.backgroundImage = 'url(' + e.target.result + ')';
-                after.style.backgroundImage = 'url(' + e.target.result + ')';
+                beforeAfter.style.backgroundImage = 'url(' + e.target.result + ')';
+                //after.style.backgroundImage = 'url(' + e.target.result + ')';
 
                 // Set the width of the before image to match the slider position
-                before.style.width = slider.offsetWidth + 'px';
-                before.style.height = '100%'; // This will now be based on the container's height
+                beforeAfter.style.height = '100%'; // This will now be based on the container's height
             };
             img.src = e.target.result; // This triggers the img.onload
         };
@@ -164,16 +163,19 @@ img {
             })
             .then(response => response.blob())
             .then(processedImage => {
-                var beforeImage = document.getElementById('beforeImage');
-                var afterImage = document.getElementById('afterImage');
-                var beforeAfter = document.getElementById('before')
-
+            var before = document.getElementById('before');
+            var afterImage = document.getElementById('afterImage');
+            var container = document.getElementById('container');
+            afterImage.onload = function() {
+              before.style.height = this.height + 'px';
+              before.style.width = this.width + 'px';
+              container.style.height = this.height + 'px';
+              container.style.width = this.width + 'px';
+            }
                 // Assuming the original image is shown as 'before' and the processed one as 'after'
             afterImage.src = URL.createObjectURL(processedImage);
             afterImage.style.display = 'block';
-            afterImage.style.height = beforeImage.height + 'px';
-            afterImage.style.width = beforeImage.width + 'px';
-            beforeAfter.style.width = '50%'; // Set initial split position
+            before.style.width = '50%'; // Set initial split position
             slider.style.left = '50%'; // Set initial slider position
             container.addEventListener('mousemove', slideMove);
             container.addEventListener('touchmove', slideMove); // Added for touch screens
