@@ -369,6 +369,7 @@ def run_tile_model(generator, image, prompt, strength):
     np_image = np_image[:, :, None]
     np_image = np.concatenate([np_image, np_image, np_image], axis=2)
     canny_image = Image.fromarray(np_image)
+    newstrength = float(strength)/10
     controlnet = ControlNetModel.from_pretrained("lllyasviel/control_v11f1e_sd15_tile", torch_dtype=torch.float16)
     model_directory = "runwayml/stable-diffusion-v1-5"
     pipe = StableDiffusionControlNetImg2ImgPipeline.from_pretrained(model_directory, controlnet=controlnet, torch_dtype=torch.float16,
@@ -378,8 +379,8 @@ def run_tile_model(generator, image, prompt, strength):
     pipe.enable_model_cpu_offload()
     image = pipe(
                 prompt=prompt,
-                num_inference_steps=45,
-                strength=strength,
+                num_inference_steps=25,
+                strength=newstrength,
                 generator=generator,
                 image=image,
                 control_image=image,
